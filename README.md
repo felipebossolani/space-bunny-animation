@@ -70,7 +70,7 @@ This was built from a single-sentence brief in one shot, with no
 follow-up corrections to the original instruction. The prompt is kept
 verbatim in [`PROMPT.md`](PROMPT.md).
 
-Felipe Bossolani — [felipe@bossolani.com](mailto:felipe@bossolani.com)
+Felipe Bossolani — [github.com/felipebossolani](https://github.com/felipebossolani)
 
 ## Browser support
 

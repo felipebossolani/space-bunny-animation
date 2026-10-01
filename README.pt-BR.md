@@ -72,7 +72,7 @@ Isto foi construído a partir de um brief de uma frase, em um único disparo,
 sem correções subsequentes à instrução original. O prompt está guardado
 literalmente em [`PROMPT.md`](PROMPT.md).
 
-Felipe Bossolani — [felipe@bossolani.com](mailto:felipe@bossolani.com)
+Felipe Bossolani — [github.com/felipebossolani](https://github.com/felipebossolani)
 
 ## Compatibilidade
 

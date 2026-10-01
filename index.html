@@ -56,7 +56,12 @@
   .crg .v{font-size:clamp(20px,3vw,30px);letter-spacing:.26em;text-transform:uppercase;
           font-weight:700;padding:0;margin:26px 0 0;border-bottom:0}
   .crg .hi{color:var(--acc)}
-  #replay{margin-top:46px;justify-self:center;pointer-events:auto}
+  /* source link: sits below the replay button, quiet until hovered */
+  .src{margin-top:44px;color:#5e5e68;text-decoration:none;letter-spacing:.22em;
+       font-size:10px;text-transform:uppercase;transition:color .25s;
+       word-break:break-all}
+  .src:hover{color:var(--acc)}
+  #replay{margin-top:34px;justify-self:center;pointer-events:auto}
   @media (max-width:640px){ .hud{font-size:9px} #hudTR{display:none} }
 </style>
 </head>
@@ -84,7 +89,7 @@
   <div class="crg">
     <div class="k">End of reel</div>
     <div class="v hi">Felipe Bossolani</div>
-    <div class="k" style="margin-top:30px">felipe@bossolani.com</div>
+    <a class="src" href="https://github.com/felipebossolani/space-bunny-animation" target="_blank" rel="noopener noreferrer">github.com/felipebossolani/space-bunny-animation</a>
     <div class="cta" id="replay">↻ Replay reel</div>
   </div>
 </div>
@@ -1093,9 +1098,12 @@ function endCard(c, t){
   c.globalAlpha = b1*.75; c.fillStyle = "#6d6d78";
   tracked(c,"END OF REEL",W/2,420,19,15,"center",700,BOX*.5);
   c.globalAlpha = b2; c.fillStyle = "#c6ff3d";
-  tracked(c,"FELIPE BOSSOLANI",W/2,520,92,-2,"center",800,BOX);
-  c.globalAlpha = b3*.7; c.fillStyle = "#8a8a97";
-  tracked(c,"FELIPE@BOSSOLANI.COM",W/2,646,24,7,"center",700,BOX*.7);
+  tracked(c,"FELIPE BOSSOLANI",W/2,530,92,-2,"center",800,BOX);
+  /* source link, pinned to the bottom margin. No email anywhere: this is a
+     public URL, and the repo is the contact surface. */
+  const b4 = smoothstep(.44,.72,t);
+  c.globalAlpha = b4*.55; c.fillStyle = "#7a7a86";
+  tracked(c,"GITHUB.COM/FELIPEBOSSOLANI/SPACE-BUNNY-ANIMATION",W/2,742,17,6,"center",600,BOX);
   c.globalAlpha = 1;
 }
 const BIGTYPE = {
@@ -1319,11 +1327,25 @@ class Score{
     S.bass(14.0, 24, 1.1, 1.2);
     S.hat(14.0,.9,.5);
   }
-  start(){
+  /* iOS resumes the AudioContext asynchronously. Scheduling against currentTime
+     while it is still frozen at 0 puts every event in the past, so the whole
+     score gets skipped. Resume first, await it, then anchor the timeline. */
+  async start(){
     try{ this.init(); }catch(e){ return; }
-    if(this.ctx.state === "suspended") this.ctx.resume();
+    const c = this.ctx;
+    if(c.state === "suspended" || c.state === "interrupted"){
+      try{ await c.resume(); }catch(e){}
+    }
+    /* Some iOS builds only unlock output hardware once a node has rendered
+       inside the gesture. A one-sample silent buffer is the standard nudge. */
+    try{
+      const s = c.createBufferSource();
+      s.buffer = c.createBuffer(1, 1, c.sampleRate);
+      s.connect(c.destination);
+      s.start(0);
+    }catch(e){}
     this.compose();
-    const n = this.ctx.currentTime, m = this.master.gain;
+    const n = c.currentTime, m = this.master.gain;
     m.cancelScheduledValues(n); m.setValueAtTime(.0001,n);
     m.exponentialRampToValueAtTime(.85, n+.7);
     m.setValueAtTime(.85, n+DUR-1.3);
@@ -1395,11 +1417,30 @@ function play(){
   intro.classList.add("hide");
   document.body.classList.add("playing");
   resize();
-  try{ score.start(); }catch(e){ console.warn("audio unavailable, playing silent:", e); }
-  playing = true; t0 = performance.now(); lastFrameAt = 0;
-  cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+  /* start audio BEFORE the clock, and let the promise settle: the score
+     anchors itself on ctx.currentTime, so the visuals must not advance
+     until that anchor exists. On iOS this is what makes sound come out.
+     The timeout guarantees audio can never block the picture. */
+  const audioReady = score.start().catch(()=>{});
+  let begun = false;
+  const begin = ()=>{
+    if(begun) return; begun = true;
+    playing = true; t0 = performance.now(); lastFrameAt = 0;
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+  };
+  audioReady.then(begin);
+  setTimeout(begin, 1200);
 }
 function replay(){ score.stop(); play(); }
+
+/* iOS suspends audio on backgrounding and on screen lock. Re-unlock it on
+   the next gesture so a returning visitor still hears the reel. */
+addEventListener("pointerdown", ()=>{
+  const c = score.ctx;
+  if(c && (c.state === "suspended" || c.state === "interrupted")){
+    c.resume().catch(()=>{});
+  }
+}, {passive:true});
 function toggleFS(){
   if(!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(()=>{});
   else document.exitFullscreen?.();
