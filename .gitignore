@@ -4,3 +4,7 @@ Thumbs.db
 *.log
 .vscode/
 .idea/
+
+# Artefato de render descartável (regerar: node tools/record-video.js).
+# Não usar *.mp4 aqui: os renders em export/ são versionados de propósito.
+reel.mp4
