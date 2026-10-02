@@ -780,26 +780,29 @@ const SCENES_GLSL = {
   /* Streaks run along x (horizontal speed lines), not across it. Each lane
      is a horizontal band that sweeps left, with a bright leading edge. */
   float t = uL;
-  float speed = mix(1.0, 3.4, easeInCubic(sat(t)));
-  float tt = uT*speed;
+  /* Phase rides the scene-local clock, not the global one: tied to uT the
+     lanes drift into a state where nothing is on screen mid-scene. Local
+     time guarantees every lane sweeps at least once within the 1s cut. */
+  float tt = uL*3.2;
   vec3 col = vec3(.007,.008,.012);
   /* faint receding grid, gives the speed something to read against */
-  float gx = smoothstep(.030,.0, abs(fract(uv.x*1.4 + tt*.12)-.5)-.47);
-  col += uAcc*gx*.16;
+  /* Faint receding verticals. abs(fract-0.5) reaches 0.5 exactly at the
+     fract seam, so the line is the HIGH end of that range, not the low. */
+  float gx = smoothstep(.47, .50, abs(fract(uv.x*1.4 + tt*.12)-.5));
+  col += uAcc*gx*.13;
   const float LANES = 9.0;
   for(int i=0;i<9;i++){
     float lane = float(i);                        /* this iteration IS a lane */
     float s1 = h11(lane+uSeed), s2 = h11(lane+uSeed+1.);
     float s3 = h11(lane+uSeed+2.), s4 = h11(lane+uSeed+3.);
     float ly = (lane - 4.5)/LANES*2.4;            /* lane centre in y */
-    float w  = mix(.006,.030,s3);                 /* line thickness */
+    float w  = mix(.008,.034,s3);                 /* line thickness */
     /* position along the lane, looping */
     float ph = fract(s2 + tt*mix(.25,.85,s1));
     float lx = mix(-2.6, 2.6, ph);
-    /* streak = the band behind the leading tip. Use the trail length in
-       units of uv.x so the head is hot and the tail fades out behind it. */
+    /* streak = the band behind the leading tip, tapering out */
     float behind = lx - uv.x;                       /* >0 behind the tip */
-    float len    = mix(.25, 1.5, s1);
+    float len    = mix(.45, 2.2, s1);
     float live   = step(0., behind) * step(behind, len);
     float taper  = 1. - behind/len;                /* 1 at tip -> 0 at tail */
     float band   = smoothstep(w, 0., abs(uv.y-ly));
